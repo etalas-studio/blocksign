@@ -1,0 +1,97 @@
+# Rust / Backend
+target/
+**/*.rs.bk
+Cargo.lock
+incremental/
+.rustc_info.json
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+.angular/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Foundry / Solidity
+broadcast/
+cache/
+out/
+build-info/
+artifacts/
+.zealus/
+foundry.toml.profile.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Secrets
+*.key
+*.pem
+*.p12
+*.jks
+secrets/
+keys/
+
+# Logs
+logs/
+*.log
+log/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
+
+# Build artifacts
+*.so
+*.dylib
+*.dll
+*.exe
+*.app
+
+# Testing
+coverage/
+.nyc_output/
+lcov-report/
+*.lcov
+
+# Documentation
+docs/_build/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Blockchain specific
+gas-reporter.json
