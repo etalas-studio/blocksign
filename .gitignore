@@ -25,6 +25,7 @@ build-info/
 artifacts/
 .zealus/
 foundry.toml.profile.json
+lib/
 
 # IDE
 .idea/

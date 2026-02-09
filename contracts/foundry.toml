@@ -9,3 +9,6 @@ fuzz = { runs = 256 }
 invariant = { runs = 256 }
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
+
+[etherscan]
+polygon_amoy = { key = "${ETHERSCAN_API_KEY}", url = "https://api-amoy.polygonscan.com/api" }
