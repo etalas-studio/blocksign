@@ -23,6 +23,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Load .env file
+    dotenv::dotenv().ok();
+
     // Initialize tracing
     tracing_subscriber::registry()
         .with(
