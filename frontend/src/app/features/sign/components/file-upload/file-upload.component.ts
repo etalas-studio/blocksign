@@ -33,9 +33,10 @@ import { UploadResponse } from '../../../../core/models/document.model';
           </div>
         } @else {
           <div class="upload-prompt">
-            <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M9.95 2.05a1 1 0 00-1.41 0l-4 4a1 1 0 001.41 1.41L9 4.41V12a1 1 0 102 0V4.41l2.54 2.54a1 1 0 001.41-1.41l-4-4z" />
-              <path d="M4 10a1 1 0 011-1h4a1 1 0 010 2H5a1 1 0 01-1-1zM4 14a1 1 0 011-1h8a1 1 0 010 2H5a1 1 0 01-1-1z" />
+            <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
             <p>Drag & drop your document here</p>
             <p class="hint">or click to browse</p>

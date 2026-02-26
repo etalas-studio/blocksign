@@ -1,19 +1,23 @@
 mod config;
+mod db;
 mod handlers;
 mod models;
 mod services;
 mod state;
 
 use crate::config::Config;
+use crate::db::{create_pool, run_migrations};
 use crate::handlers::{get_health, get_upload_by_hash, get_upload_by_id, get_verification, post_upload, post_tx_hash};
 use crate::services::{BlockchainService, StorageService};
-use crate::state::AppState;
+use crate::services::storage::DatabaseRepositories;
+use crate::state::{AppState, DatabaseState};
 use axum::{
     http::Method,
     routing::{get, post},
     Router,
 };
 use std::sync::Arc;
+use anyhow::Context;
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -39,12 +43,35 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::from_env()?;
     tracing::info!("Loaded configuration: {:?}", config.server);
 
+    // Initialize database
+    tracing::info!("Connecting to database: {}", config.database.url);
+    let db_pool = create_pool(&config.database.url).await?;
+    run_migrations(&db_pool).await?;
+    tracing::info!("Database initialized and migrations completed");
+
+    let db_state = DatabaseState::new(db_pool);
+
+    // Create data directory for database if needed
+    if let Some(db_path) = config.database.url.strip_prefix("sqlite:///") {
+        if let Some(parent) = std::path::Path::new(db_path).parent() {
+            std::fs::create_dir_all(parent).context("Failed to create database directory")?;
+        }
+    }
+
+    // Initialize database repositories for storage service
+    let storage_repos = DatabaseRepositories {
+        documents: db_state.documents.clone(),
+        audit_logs: db_state.audit_logs.clone(),
+        wallets: db_state.wallets.clone(),
+    };
+
     // Initialize services
     let storage_service = Arc::new(StorageService::new(
         config.storage.upload_dir.clone(),
         config.storage.file_retention_hours,
+        storage_repos,
     )?);
-    tracing::info!("Storage service initialized");
+    tracing::info!("Storage service initialized with database persistence");
 
     let blockchain_service = Arc::new(BlockchainService::new(
         &config.blockchain.rpc_url,
@@ -82,7 +109,7 @@ async fn main() -> anyhow::Result<()> {
         // Transaction endpoints
         .route("/api/tx/:hash", post(post_tx_hash))
         .route("/api/verify/:hash", get(get_verification))
-        .layer(axum::extract::Extension(AppState::new(storage_service, blockchain_service)))
+        .layer(axum::extract::Extension(AppState::new(storage_service, blockchain_service, db_state)))
         // Middleware
         .layer(
             ServiceBuilder::new()

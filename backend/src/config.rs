@@ -7,6 +7,7 @@ pub struct Config {
     pub server: ServerConfig,
     pub storage: StorageConfig,
     pub blockchain: BlockchainConfig,
+    pub database: DatabaseConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -27,6 +28,13 @@ pub struct BlockchainConfig {
     pub rpc_url: String,
     pub contract_address: String,
     pub chain_id: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DatabaseConfig {
+    pub url: String,
+    pub backup_dir: String,
+    pub max_connections: u32,
 }
 
 impl Config {
@@ -59,6 +67,16 @@ impl Config {
                     .unwrap_or_else(|_| "80002".to_string())
                     .parse()
                     .context("Invalid CHAIN_ID value")?,
+            },
+            database: DatabaseConfig {
+                url: env::var("DATABASE_URL")
+                    .unwrap_or_else(|_| "sqlite:///data/blocksign.db".to_string()),
+                backup_dir: env::var("DATABASE_BACKUP_DIR")
+                    .unwrap_or_else(|_| "/data/backups".to_string()),
+                max_connections: env::var("DATABASE_MAX_CONNECTIONS")
+                    .unwrap_or_else(|_| "10".to_string())
+                    .parse()
+                    .context("Invalid DATABASE_MAX_CONNECTIONS value")?,
             },
         })
     }

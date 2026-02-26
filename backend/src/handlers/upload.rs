@@ -15,6 +15,7 @@ pub async fn post_upload(
     let mut filename = String::new();
     let mut bytes = Vec::new();
     let mut content_type = String::new();
+    let mut uploader_wallet = String::from("anonymous"); // Default wallet address
 
     // Process multipart form data
     while let Some(field) = multipart.next_field().await.map_err(|e| {
@@ -52,6 +53,14 @@ pub async fn post_upload(
             if bytes.len() > MAX_FILE_SIZE_BYTES {
                 return Err(AppError::FileTooLargeError { max_size_mb: 10 });
             }
+        } else if name == "wallet" {
+            // Extract uploader wallet address
+            let wallet_bytes = field
+                .bytes()
+                .await
+                .map_err(|e| AppError::ValidationError(format!("Failed to read wallet: {}", e)))?;
+            uploader_wallet = String::from_utf8(wallet_bytes.to_vec())
+                .map_err(|_| AppError::ValidationError("Invalid wallet address".to_string()))?;
         }
     }
 
@@ -65,7 +74,7 @@ pub async fn post_upload(
         .map_err(|e| AppError::HashingError(format!("Failed to compute hash: {}", e)))?;
 
     // Store file
-    let upload = state.storage.save_file(filename, bytes, content_type, hash).await?;
+    let upload = state.storage.save_file(filename, bytes, content_type, hash, uploader_wallet).await?;
 
     Ok(Json(upload.into()))
 }
