@@ -57,6 +57,13 @@ export class ApiService {
   }
 
   /**
+   * Get document by hash (alias for getUploadByHash)
+   */
+  getDocumentByHash(hash: string): Observable<HashResponse[]> {
+    return this.getUploadByHash(hash);
+  }
+
+  /**
    * Store transaction hash for a document
    */
   storeTransaction(

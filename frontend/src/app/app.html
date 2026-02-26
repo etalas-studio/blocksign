@@ -1,1 +1,7 @@
 <router-outlet />
+
+<!-- Onboarding Modal -->
+<app-onboarding-modal
+  [open]="showOnboarding()"
+  (complete)="handleOnboardingComplete($event)"
+/>
