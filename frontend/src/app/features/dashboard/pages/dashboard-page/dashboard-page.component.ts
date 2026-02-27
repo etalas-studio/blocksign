@@ -1,6 +1,11 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router, RouterModule } from '@angular/router';
 import { WalletService } from '../../../../core/services/wallet.service';
+import { ApiService } from '../../../../core/services/api.service';
+import { DocumentResponse, DocumentMetrics } from '../../../../core/models/api.model';
+import { ErrorDisplayComponent } from '../../../../shared/components';
+import { SkeletonLoaderComponent } from '../../../../shared/components';
 
 interface MetricCard {
   title: string;
@@ -19,9 +24,13 @@ interface BlockchainActivity {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule, ErrorDisplayComponent, SkeletonLoaderComponent],
   template: `
     <div class="dashboard">
+      @if (error()) {
+        <app-error-display [message]="error()!" (retry)="retry()" />
+      }
+
       <!-- Trust Status Banner -->
       <div class="trust-banner">
         <div class="trust-banner-content">
@@ -61,17 +70,25 @@ interface BlockchainActivity {
       </div>
 
       <!-- Metrics Cards -->
-      <div class="metrics-grid">
-        <div class="metric-card" *ngFor="let metric of metrics">
-          <div class="metric-icon" [style.background-color]="metric.color + '20'">
-            <svg [style.color]="metric.color" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" [innerHTML]="metric.icon"></svg>
-          </div>
-          <div class="metric-content">
-            <div class="metric-value">{{ metric.value }}</div>
-            <div class="metric-label">{{ metric.title }}</div>
+      @if (loading()) {
+        <div class="metrics-grid">
+          @for (i of [1,2,3,4,5]; track i) {
+            <app-skeleton-loader type="circle" />
+          }
+        </div>
+      } @else {
+        <div class="metrics-grid">
+          <div class="metric-card" *ngFor="let metric of metricCards()">
+            <div class="metric-icon" [style.background-color]="metric.color + '20'">
+              <svg [style.color]="metric.color" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" [innerHTML]="metric.icon"></svg>
+            </div>
+            <div class="metric-content">
+              <div class="metric-value">{{ metric.value }}</div>
+              <div class="metric-label">{{ metric.title }}</div>
+            </div>
           </div>
         </div>
-      </div>
+      }
 
       <!-- Main Content Grid -->
       <div class="content-grid">
@@ -79,93 +96,93 @@ interface BlockchainActivity {
         <div class="card documents-section">
           <div class="section-header">
             <h2>Recent Documents</h2>
-            <button class="btn btn-secondary btn-sm">View All</button>
+            <button class="btn btn-secondary btn-sm" [routerLink]="['/documents']">View All</button>
           </div>
-          <div class="table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Document Name</th>
-                  <th>Document Hash</th>
-                  <th>Signer Address</th>
-                  <th>Timestamp</th>
-                  <th>Blockchain Status</th>
-                  <th>Verification Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let doc of recentDocuments">
-                  <td class="doc-name">{{ doc.name }}</td>
-                  <td class="doc-hash">{{ doc.hash }}</td>
-                  <td class="signer">{{ doc.signer }}</td>
-                  <td class="timestamp">{{ doc.timestamp }}</td>
-                  <td><span class="badge" [ngClass]="'badge-' + doc.blockchainStatus">{{ doc.blockchainStatus }}</span></td>
-                  <td><span class="badge" [ngClass]="'badge-' + doc.verificationStatus">{{ doc.verificationStatus }}</span></td>
-                  <td class="actions-cell">
-                    <div class="action-group">
-                      <button class="action-btn" aria-label="View document" title="View document">
-                        <svg class="action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                          <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                      </button>
-                      <button class="action-btn" aria-label="Verify document" title="Verify document">
-                        <svg class="action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                      </button>
-                      <button class="action-btn" aria-label="Download proof" title="Download proof">
-                        <svg class="action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                          <polyline points="7 10 12 15 17 10"/>
-                          <line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                @if (recentDocuments.length === 0) {
+          @if (loading()) {
+            <div class="table-container">
+              <app-skeleton-loader type="table" />
+            </div>
+          } @else {
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
                   <tr>
-                    <td colspan="7" class="empty-state">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                      </svg>
-                      <p>No documents yet. Upload your first document to get started.</p>
-                      <a routerLink="/upload" class="btn btn-primary">Upload Document</a>
-                    </td>
+                    <th>Document Name</th>
+                    <th>Document Hash</th>
+                    <th>Signer Address</th>
+                    <th>Timestamp</th>
+                    <th>Verification Status</th>
+                    <th>Actions</th>
                   </tr>
-                }
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  @for (doc of documents(); track doc.id) {
+                    <tr>
+                      <td class="doc-name" [title]="doc.name">{{ doc.name }}</td>
+                      <td class="doc-hash">{{ doc.hash.slice(0, 10) }}...{{ doc.hash.slice(-8) }}</td>
+                      <td class="signer">{{ doc.uploader_wallet.slice(0, 8) }}...{{ doc.uploader_wallet.slice(-6) }}</td>
+                      <td class="timestamp">{{ doc.uploaded_at | date:'short' }}</td>
+                      <td><span class="badge" [ngClass]="doc.verification_status === 'verified' ? 'badge-verified' : 'badge-pending'">{{ doc.verification_status }}</span></td>
+                      <td class="actions-cell">
+                        <div class="action-group">
+                          <button class="action-btn" aria-label="View document" title="View document" [routerLink]="['/documents', doc.hash]">
+                            <svg class="action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                              <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                  @if (documents().length === 0) {
+                    <tr>
+                      <td colspan="6" class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                          <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        <p>No documents yet. Upload your first document to get started.</p>
+                        <a routerLink="/upload" class="btn btn-primary">Upload Document</a>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
         </div>
 
         <!-- Blockchain Activity -->
         <div class="card activity-section">
           <h2>Blockchain Activity</h2>
-          <div class="activity-timeline">
-            <div class="activity-item" *ngFor="let activity of blockchainActivities">
-              <div class="activity-dot" [ngClass]="'dot-' + activity.type"></div>
-              <div class="activity-content">
-                <div class="activity-message">{{ activity.message }}</div>
-                <div class="activity-time">{{ activity.timestamp | date:'short' }}</div>
-                @if (activity.hash) {
-                  <div class="activity-hash">{{ activity.hash }}</div>
-                }
-              </div>
+          @if (loading()) {
+            <app-skeleton-loader type="row" />
+          } @else {
+            <div class="activity-timeline">
+              @for (activity of blockchainActivities(); track activity.timestamp) {
+                <div class="activity-item">
+                  <div class="activity-dot" [ngClass]="'dot-' + activity.type"></div>
+                  <div class="activity-content">
+                    <div class="activity-message">{{ activity.message }}</div>
+                    <div class="activity-time">{{ activity.timestamp | date:'short' }}</div>
+                    @if (activity.hash) {
+                      <div class="activity-hash">{{ activity.hash }}</div>
+                    }
+                  </div>
+                </div>
+              }
+              @if (blockchainActivities().length === 0) {
+                <div class="empty-activity">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                  </svg>
+                  <p>No blockchain activity yet</p>
+                </div>
+              }
             </div>
-            @if (blockchainActivities.length === 0) {
-              <div class="empty-activity">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-                </svg>
-                <p>No blockchain activity yet</p>
-              </div>
-            }
-          </div>
+          }
         </div>
       </div>
     </div>
@@ -614,87 +631,148 @@ interface BlockchainActivity {
 })
 export class DashboardComponent implements OnInit {
   walletService = inject(WalletService);
+  private apiService = inject(ApiService);
+  private router = inject(Router);
 
-  metrics: MetricCard[] = [
-    {
-      title: 'Documents Stored',
-      value: '12',
-      icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
-      color: '#3B82F6'
-    },
-    {
-      title: 'Total Signatures',
-      value: '34',
-      icon: '<path d="M12 19l7-7 3 3-7-7-7-7 7-3-3"/><path d="M18 9l-5-5-5 5"/><path d="M2 12h20"/><path d="M7 12v5a5 5 0 0 0 5 5h0a5 5 0 0 0 5-5v-5"/>',
-      color: '#22C55E'
-    },
-    {
-      title: 'On-Chain Records',
-      value: '34',
-      icon: '<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
-      color: '#8B5CF6'
-    },
-    {
-      title: 'Verification Requests',
-      value: '5',
-      icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
-      color: '#F59E0B'
-    },
-    {
-      title: 'Trust Integrity Score',
-      value: '100%',
-      icon: '<path d="M12 22s8-4 8-10V5l-8-3v10c0 6 8 10 8 10z"/>',
-      color: '#22C55E'
-    }
-  ];
+  // State with signals
+  loading = signal(false);
+  error = signal<string | null>(null);
+  metrics = signal<DocumentMetrics | null>(null);
+  documents = signal<DocumentResponse[]>([]);
 
-  recentDocuments = [
-    {
-      name: 'Employment Contract.pdf',
-      hash: '0xA82F...91CD',
-      signer: '0x71C...A92F',
-      timestamp: '2025-02-26 14:22',
-      blockchainStatus: 'confirmed',
-      verificationStatus: 'verified'
-    },
-    {
-      name: 'NDA_Agreement.pdf',
-      hash: '0x5B3E...7F2A',
-      signer: '0x45D...3C8E',
-      timestamp: '2025-02-26 13:45',
-      blockchainStatus: 'confirmed',
-      verificationStatus: 'verified'
-    },
-    {
-      name: 'Service_Level_Agreement.docx',
-      hash: '0xC9D1...4E8B',
-      signer: '0x71C...A92F',
-      timestamp: '2025-02-26 11:30',
-      blockchainStatus: 'pending',
-      verificationStatus: 'pending'
-    }
-  ];
+  // Computed metrics for display
+  metricCards = computed(() => {
+    const m = this.metrics();
+    if (!m) return this.getDefaultMetrics();
 
-  blockchainActivities: BlockchainActivity[] = [
-    {
-      type: 'sign',
-      message: 'Document signed by 0x71C...A92F',
-      timestamp: new Date(Date.now() - 3600000),
-      hash: '0xabc123...def456'
-    },
-    {
-      type: 'confirm',
-      message: 'Transaction confirmed on block #334455',
-      timestamp: new Date(Date.now() - 7200000)
-    },
-    {
-      type: 'verify',
-      message: 'Document verified: Employment Contract.pdf',
-      timestamp: new Date(Date.now() - 10800000)
-    }
-  ];
+    return [
+      {
+        title: 'Documents Stored',
+        value: m.total_documents.toString(),
+        icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
+        color: '#3B82F6'
+      },
+      {
+        title: 'Total Signatures',
+        value: m.total_signatures.toString(),
+        icon: '<path d="M12 19l7-7 3 3-7-7-7-7 7-3-3"/><path d="M18 9l-5-5-5 5"/><path d="M2 12h20"/><path d="M7 12v5a5 5 0 0 0 5 5h0a5 5 0 0 0 5-5v-5"/>',
+        color: '#22C55E'
+      },
+      {
+        title: 'On-Chain Records',
+        value: m.on_chain_records.toString(),
+        icon: '<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+        color: '#8B5CF6'
+      },
+      {
+        title: 'Verified Documents',
+        value: m.verified_documents.toString(),
+        icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+        color: '#F59E0B'
+      },
+      {
+        title: 'Unique Signers',
+        value: m.unique_signers.toString(),
+        icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+        color: '#22C55E'
+      }
+    ];
+  });
+
+  // Blockchain activities computed from documents
+  blockchainActivities = computed(() => {
+    const docs = this.documents();
+    return docs.slice(0, 5).flatMap(doc =>
+      doc.signatures.map(sig => ({
+        type: sig.status === 'confirmed' ? 'sign' : 'pending',
+        message: `Document signed by ${sig.wallet_address.slice(0, 6)}...${sig.wallet_address.slice(-4)}`,
+        timestamp: new Date(sig.signed_at),
+        hash: sig.tx_hash
+      }))
+    );
+  });
 
   ngOnInit(): void {
-    // In a real app, fetch actual data from backend
+    this.loadData();
+  }
+
+  private loadData() {
+    this.loading.set(true);
+    this.error.set(null);
+
+    // Load metrics and documents in parallel
+    this.loadMetrics();
+    this.loadDocuments();
+  }
+
+  private loadMetrics() {
+    const walletState = this.walletService.getWalletState();
+    const wallet = walletState.connected && walletState.address ? walletState.address : undefined;
+
+    this.apiService.getDocumentMetrics(wallet).subscribe({
+      next: (metrics) => {
+        this.metrics.set(metrics);
+      },
+      error: (err) => {
+        console.error('Failed to load metrics:', err);
+        this.error.set('Failed to load metrics');
+      }
+    });
+  }
+
+  private loadDocuments() {
+    const walletState = this.walletService.getWalletState();
+    const wallet = walletState.connected && walletState.address ? walletState.address : undefined;
+
+    this.apiService.getDocuments({ wallet, limit: 10, offset: 0 }).subscribe({
+      next: (response) => {
+        this.documents.set(response.documents);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        console.error('Failed to load documents:', err);
+        this.error.set('Failed to load documents');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  private getDefaultMetrics(): MetricCard[] {
+    return [
+      {
+        title: 'Documents Stored',
+        value: '0',
+        icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>',
+        color: '#3B82F6'
+      },
+      {
+        title: 'Total Signatures',
+        value: '0',
+        icon: '<path d="M12 19l7-7 3 3-7-7-7-7 7-3-3"/><path d="M18 9l-5-5-5 5"/><path d="M2 12h20"/><path d="M7 12v5a5 5 0 0 0 5 5h0a5 5 0 0 0 5-5v-5"/>',
+        color: '#22C55E'
+      },
+      {
+        title: 'On-Chain Records',
+        value: '0',
+        icon: '<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+        color: '#8B5CF6'
+      },
+      {
+        title: 'Verified Documents',
+        value: '0',
+        icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+        color: '#F59E0B'
+      },
+      {
+        title: 'Unique Signers',
+        value: '0',
+        icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+        color: '#22C55E'
+      }
+    ];
+  }
+
+  retry() {
+    this.loadData();
   }
 }

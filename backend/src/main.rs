@@ -8,7 +8,12 @@ mod utils;
 
 use crate::config::Config;
 use crate::db::{create_pool, run_migrations};
-use crate::handlers::{get_health, get_upload_by_hash, get_upload_by_id, get_verification, post_upload, post_tx_hash};
+use crate::handlers::{
+    get_audit_logs, get_audit_stats, export_audit_logs,
+    get_blockchain_stats, get_transactions, get_contract_info,
+    get_documents, get_document_metrics, get_document_by_hash,
+    get_health, get_upload_by_hash, get_upload_by_id, get_verification, post_upload, post_tx_hash
+};
 use crate::services::{BlockchainService, StorageService};
 use crate::services::storage::DatabaseRepositories;
 use crate::state::{AppState, DatabaseState};
@@ -110,6 +115,18 @@ async fn main() -> anyhow::Result<()> {
         // Transaction endpoints
         .route("/api/tx/:hash", post(post_tx_hash))
         .route("/api/verify/:hash", get(get_verification))
+        // Documents endpoints
+        .route("/api/documents", get(get_documents))
+        .route("/api/documents/metrics", get(get_document_metrics))
+        .route("/api/documents/:hash", get(get_document_by_hash))
+        // Audit endpoints
+        .route("/api/audit", get(get_audit_logs))
+        .route("/api/audit/stats", get(get_audit_stats))
+        .route("/api/audit/export", post(export_audit_logs))
+        // Blockchain endpoints
+        .route("/api/blockchain/stats", get(get_blockchain_stats))
+        .route("/api/blockchain/transactions", get(get_transactions))
+        .route("/api/blockchain/contract", get(get_contract_info))
         .layer(axum::extract::Extension(AppState::new(storage_service, blockchain_service, db_state)))
         // Middleware
         .layer(

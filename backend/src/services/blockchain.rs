@@ -183,6 +183,17 @@ impl BlockchainService {
     pub fn network_name(&self) -> &str {
         NETWORK_NAME
     }
+
+    /// Get current block number
+    pub async fn get_current_block(&self) -> Result<u64, AppError> {
+        let block_number = self
+            .provider
+            .get_block_number()
+            .await
+            .map_err(|e| AppError::BlockchainError(format!("Failed to get block number: {}", e)))?;
+
+        Ok(block_number.as_u64())
+    }
 }
 
 #[cfg(test)]
