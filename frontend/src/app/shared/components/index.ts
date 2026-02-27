@@ -8,3 +8,4 @@ export * from './skeleton-loader/skeleton-loader.component';
 export * from './empty-state/empty-state.component';
 export * from './transaction-modal/transaction-modal.component';
 export * from './onboarding-modal/onboarding-modal.component';
+export * from './signature-card/signature-card.component';

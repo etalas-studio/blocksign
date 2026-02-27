@@ -1,5 +1,6 @@
 use crate::models::{AppError, SignatureInfo, VerificationResponse};
 use anyhow::{Context, Result};
+use chrono::Utc;
 use ethers::{
     abi::Abi,
     prelude::*,
@@ -49,11 +50,16 @@ const CONTRACT_ABI: &str = r#"[
     }
 ]"#;
 
+// Polygon Amoy block explorer URL
+const POLYGON_AMOY_EXPLORER: &str = "https://amoy.polygonscan.com";
+const NETWORK_NAME: &str = "Polygon Amoy Testnet";
+
 #[derive(Clone)]
 pub struct BlockchainService {
     provider: Arc<Provider<Http>>,
     contract_address: Address,
     contract: Contract<Provider<Http>>,
+    block_explorer: String,
 }
 
 impl BlockchainService {
@@ -78,6 +84,7 @@ impl BlockchainService {
             provider,
             contract_address,
             contract,
+            block_explorer: POLYGON_AMOY_EXPLORER.to_string(),
         })
     }
 
@@ -100,7 +107,7 @@ impl BlockchainService {
         Ok(result)
     }
 
-    /// Get all signatures for a document
+    /// Get all signatures for a document with full details
     pub async fn get_signatures(&self, hash: &str) -> Result<VerificationResponse, AppError> {
         let doc_hash = H256::from_str(hash)
             .map_err(|_| AppError::ValidationError("Invalid document hash format".to_string()))?;
@@ -116,19 +123,28 @@ impl BlockchainService {
 
         let signatures: Vec<SignatureInfo> = tokens
             .into_iter()
-            .map(|(signer, _doc_hash, timestamp, _signature)| SignatureInfo {
-                signer: format!("{:#x}", signer),
-                timestamp: timestamp.as_u64(),
-                tx_hash: String::new(), // Transaction hash not directly available from struct
+            .map(|(signer, doc_hash, timestamp, signature)| {
+                let signer_addr = format!("{:#x}", signer);
+                SignatureInfo {
+                    signer: signer_addr.clone(),
+                    doc_hash: hash.to_string(),
+                    timestamp: timestamp.as_u64(),
+                    signature: format!("0x{}", hex::encode(signature)),
+                    network: NETWORK_NAME.to_string(),
+                    block_explorer_url: format!("{}/address/{}", self.block_explorer, signer_addr),
+                }
             })
             .collect();
 
-        let exists = !signatures.is_empty();
+        let verified = !signatures.is_empty();
+        let total_signatures = signatures.len();
 
         Ok(VerificationResponse {
             hash: hash.to_string(),
             signatures,
-            exists,
+            verified,
+            verification_date: Utc::now(),
+            total_signatures,
         })
     }
 
@@ -146,6 +162,26 @@ impl BlockchainService {
             .map_err(|e| AppError::BlockchainError(format!("RPC call failed: {}", e)))?;
 
         Ok(count.as_u64())
+    }
+
+    /// Get block explorer URL for address
+    pub fn get_address_explorer_url(&self, address: &str) -> String {
+        format!("{}/address/{}", self.block_explorer, address)
+    }
+
+    /// Get block explorer URL for transaction
+    pub fn get_tx_explorer_url(&self, tx_hash: &str) -> String {
+        format!("{}/tx/{}", self.block_explorer, tx_hash)
+    }
+
+    /// Get contract address
+    pub fn contract_address(&self) -> String {
+        format!("{:#x}", self.contract_address)
+    }
+
+    /// Get network name
+    pub fn network_name(&self) -> &str {
+        NETWORK_NAME
     }
 }
 
@@ -180,5 +216,16 @@ mod tests {
         let hash = "invalid_hash";
         let parsed = H256::from_str(hash);
         assert!(parsed.is_err());
+    }
+
+    #[test]
+    fn test_explorer_urls() {
+        // Test with mock service (would need actual RPC URL in real test)
+        let explorer = POLYGON_AMOY_EXPLORER;
+        assert!(explorer.contains("polygonscan"));
+
+        let address = "0x1234567890123456789012345678901234567890";
+        let url = format!("{}/address/{}", explorer, address);
+        assert!(url.contains("0x1234567890"));
     }
 }

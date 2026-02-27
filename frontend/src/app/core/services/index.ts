@@ -4,3 +4,6 @@ export * from './contract.service';
 export * from './api.service';
 export * from './confetti.service';
 export * from './animation.service';
+export * from './document-hasher.service';
+export * from './verification.service';
+export * from './proof-download.service';

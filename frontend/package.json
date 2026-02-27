@@ -19,6 +19,7 @@
     "@angular/router": "^21.2.0",
     "canvas-confetti": "^1.9.4",
     "ethers": "^6.16.0",
+    "jspdf": "^2.5.2",
     "qrcode": "^1.5.4",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"

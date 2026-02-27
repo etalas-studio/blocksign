@@ -41,18 +41,25 @@ pub struct TransactionHashRequest {
     pub signer: String,
 }
 
+/// Enhanced verification response with detailed signature information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VerificationResponse {
     pub hash: String,
     pub signatures: Vec<SignatureInfo>,
-    pub exists: bool,
+    pub verified: bool,
+    pub verification_date: DateTime<Utc>,
+    pub total_signatures: usize,
 }
 
+/// Detailed signature information from blockchain
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignatureInfo {
     pub signer: String,
+    pub doc_hash: String,
     pub timestamp: u64,
-    pub tx_hash: String,
+    pub signature: String,
+    pub network: String,
+    pub block_explorer_url: String,
 }
 
 impl From<FileUpload> for UploadResponse {
