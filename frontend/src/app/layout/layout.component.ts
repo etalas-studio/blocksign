@@ -55,6 +55,9 @@ interface NavItem {
                 <path d="M18 9l-5-5-5 5"/>
                 <path d="M2 12h20"/>
                 <path d="M7 12v5a5 5 0 0 0 5 5h0a5 5 0 0 0 5-5v-5"/>
+                <circle cx="12" cy="12" r="1"/>
+                <circle cx="12" cy="5" r="1"/>
+                <circle cx="12" cy="19" r="1"/>
               </svg>
               <span>Signatures</span>
             </a>
@@ -87,8 +90,14 @@ interface NavItem {
             </a>
             <a class="nav-item" routerLink="/audit" routerLinkActive="active">
               <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                <path d="M22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6"/>
+                <path d="M12 20h9"/>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4-4L14.5 6.5a2.121 2.121 0 0 1 3-3L14.5 6.5"/>
+                <path d="m16 17 4 4"/>
+                <path d="M21 21v-7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v7"/>
+                <circle cx="12" cy="13" r="2"/>
+                <circle cx="12" cy="18" r="2"/>
+                <circle cx="17" cy="13" r="2"/>
+                <circle cx="7" cy="13" r="2"/>
               </svg>
               <span>Audit Trail</span>
             </a>
