@@ -7,3 +7,4 @@ export * from './animation.service';
 export * from './document-hasher.service';
 export * from './verification.service';
 export * from './proof-download.service';
+export * from './security.service';

@@ -1,12 +1,11 @@
 use crate::models::{is_allowed_content_type, AppError, HashResponse, UploadResponse};
 use crate::services::compute_hash;
 use crate::state::AppState;
+use crate::utils::{validate_file, MAX_FILE_SIZE_BYTES};
 use axum::{
     extract::{Extension, Multipart, Path},
     Json,
 };
-
-const MAX_FILE_SIZE_BYTES: usize = 10 * 1024 * 1024; // 10 MB
 
 pub async fn post_upload(
     Extension(state): Extension<AppState>,
@@ -49,10 +48,15 @@ pub async fn post_upload(
                 .map_err(|e| AppError::StorageError(format!("Failed to read file bytes: {}", e)))?
                 .to_vec();
 
-            // Validate file size
-            if bytes.len() > MAX_FILE_SIZE_BYTES {
-                return Err(AppError::FileTooLargeError { max_size_mb: 10 });
-            }
+            // Comprehensive file validation including magic bytes
+            let sanitized_filename = validate_file(
+                &filename,
+                &bytes,
+                &content_type,
+                MAX_FILE_SIZE_BYTES,
+            )?;
+
+            filename = sanitized_filename;
         } else if name == "wallet" {
             // Extract uploader wallet address
             let wallet_bytes = field

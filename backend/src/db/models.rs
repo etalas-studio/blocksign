@@ -192,3 +192,79 @@ pub struct DatabaseStats {
     pub total_audit_logs: i64,
     pub total_verifications: i64,
 }
+
+// ============================================================================
+// Nonce Models (for replay attack prevention)
+// ============================================================================
+
+/// Represents a nonce record in the database
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
+pub struct Nonce {
+    pub id: i64,
+    pub nonce_value: String,
+    pub wallet_address: String,
+    pub document_hash: Option<String>,
+    pub used: bool,
+    pub expires_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Represents a new nonce to be inserted
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NewNonce {
+    pub nonce_value: String,
+    pub wallet_address: String,
+    pub document_hash: Option<String>,
+    pub expires_at: DateTime<Utc>,
+}
+
+// ============================================================================
+// Rate Limit Models
+// ============================================================================
+
+/// Represents a rate limit entry in the database
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
+pub struct RateLimitEntry {
+    pub id: i64,
+    pub identifier: String,
+    pub endpoint: String,
+    pub requested_at: DateTime<Utc>,
+}
+
+/// Represents a new rate limit entry to be inserted
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NewRateLimitEntry {
+    pub identifier: String,
+    pub endpoint: String,
+    pub requested_at: DateTime<Utc>,
+}
+
+// ============================================================================
+// Security Event Models
+// ============================================================================
+
+/// Represents a security event record in the database
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
+pub struct SecurityEvent {
+    pub id: i64,
+    pub event_type: String,
+    pub severity: String,
+    pub ip_address: Option<String>,
+    pub wallet_address: Option<String>,
+    pub document_hash: Option<String>,
+    pub details: Option<String>,
+    pub user_agent: Option<String>,
+    pub timestamp: DateTime<Utc>,
+}
+
+/// Represents a new security event to be inserted
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NewSecurityEvent {
+    pub event_type: String,
+    pub severity: String,
+    pub ip_address: Option<String>,
+    pub wallet_address: Option<String>,
+    pub document_hash: Option<String>,
+    pub details: Option<String>,
+    pub user_agent: Option<String>,
+}

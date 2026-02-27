@@ -1,5 +1,5 @@
 use crate::services::{BlockchainService, StorageService};
-use crate::db::repositories::{DocumentRepository, SignatureRepository, WalletRepository, AuditLogRepository, VerificationRepository};
+use crate::db::repositories::{DocumentRepository, SignatureRepository, WalletRepository, AuditLogRepository, VerificationRepository, NonceRepository, RateLimitRepository, SecurityEventRepository};
 use sqlx::{Pool, Sqlite};
 use std::sync::Arc;
 
@@ -19,6 +19,9 @@ pub struct DatabaseState {
     pub wallets: Arc<WalletRepository>,
     pub audit_logs: Arc<AuditLogRepository>,
     pub verifications: Arc<VerificationRepository>,
+    pub nonces: Arc<NonceRepository>,
+    pub rate_limits: Arc<RateLimitRepository>,
+    pub security_events: Arc<SecurityEventRepository>,
 }
 
 impl AppState {
@@ -40,7 +43,10 @@ impl DatabaseState {
             signatures: Arc::new(SignatureRepository::new(pool.clone())),
             wallets: Arc::new(WalletRepository::new(pool.clone())),
             audit_logs: Arc::new(AuditLogRepository::new(pool.clone())),
-            verifications: Arc::new(VerificationRepository::new(pool)),
+            verifications: Arc::new(VerificationRepository::new(pool.clone())),
+            nonces: Arc::new(NonceRepository::new(pool.clone())),
+            rate_limits: Arc::new(RateLimitRepository::new(pool.clone())),
+            security_events: Arc::new(SecurityEventRepository::new(pool)),
         }
     }
 }

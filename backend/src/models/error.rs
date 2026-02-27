@@ -14,6 +14,7 @@ pub enum AppError {
     HashingError(String),
     BlockchainError(String),
     InternalError(String),
+    RateLimitError { limit: u32, window_seconds: i64, retry_after: i64 },
 }
 
 impl fmt::Display for AppError {
@@ -28,6 +29,9 @@ impl fmt::Display for AppError {
             AppError::HashingError(msg) => write!(f, "Hashing error: {}", msg),
             AppError::BlockchainError(msg) => write!(f, "Blockchain error: {}", msg),
             AppError::InternalError(msg) => write!(f, "Internal error: {}", msg),
+            AppError::RateLimitError { limit, window_seconds, .. } => {
+                write!(f, "Rate limit exceeded: {} requests per {} seconds", limit, window_seconds)
+            }
         }
     }
 }
@@ -60,6 +64,11 @@ impl IntoResponse for AppError {
             AppError::InternalError(msg) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal_error", msg)
             }
+            AppError::RateLimitError { limit, window_seconds, retry_after } => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "rate_limit_exceeded",
+                format!("Rate limit exceeded: {} requests per {} seconds. Retry after {} seconds.", limit, window_seconds, retry_after),
+            ),
         };
 
         let body = Json(ErrorResponse {

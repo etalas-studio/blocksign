@@ -4,6 +4,7 @@ mod handlers;
 mod models;
 mod services;
 mod state;
+mod utils;
 
 use crate::config::Config;
 use crate::db::{create_pool, run_migrations};

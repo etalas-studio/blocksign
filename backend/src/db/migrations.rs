@@ -81,10 +81,16 @@ struct Migration {
 
 /// Returns all migrations in order
 fn get_migrations() -> Vec<Migration> {
-    vec![Migration {
-        name: "001_initial_schema",
-        sql: include_str!("../../migrations/001_initial_schema.sql"),
-    }]
+    vec![
+        Migration {
+            name: "001_initial_schema",
+            sql: include_str!("../../migrations/001_initial_schema.sql"),
+        },
+        Migration {
+            name: "002_add_security_tables",
+            sql: include_str!("../../migrations/002_add_security_tables.sql"),
+        },
+    ]
 }
 
 #[cfg(test)]

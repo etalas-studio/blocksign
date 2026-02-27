@@ -9,3 +9,5 @@ export * from './empty-state/empty-state.component';
 export * from './transaction-modal/transaction-modal.component';
 export * from './onboarding-modal/onboarding-modal.component';
 export * from './signature-card/signature-card.component';
+export * from './signature-warning/signature-warning.component';
+export * from './security-modal/security-modal.component';
