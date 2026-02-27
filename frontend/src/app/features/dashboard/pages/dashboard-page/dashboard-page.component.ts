@@ -294,6 +294,11 @@ interface BlockchainActivity {
       border-radius: var(--radius-lg);
     }
 
+    .documents-section {
+      min-width: 0;
+      overflow: hidden;
+    }
+
     .section-header {
       display: flex;
       justify-content: space-between;
@@ -310,12 +315,16 @@ interface BlockchainActivity {
 
     /* Table */
     .table-container {
+      width: 100%;
       overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-gutter: stable;
     }
 
     .data-table {
-      width: 100%;
-      min-width: 900px;
+      width: max-content;
+      min-width: 100%;
       border-collapse: collapse;
     }
 
@@ -329,12 +338,14 @@ interface BlockchainActivity {
       color: var(--color-text-muted);
       border-bottom: 1px solid var(--color-border);
       background: var(--color-bg);
+      white-space: nowrap;
     }
 
     .data-table td {
       padding: 14px 16px;
       border-bottom: 1px solid var(--color-border-light);
       font-size: 14px;
+      white-space: nowrap;
     }
 
     .data-table tr:last-child td {
@@ -344,6 +355,9 @@ interface BlockchainActivity {
     .doc-name {
       font-weight: 500;
       color: var(--color-text-primary);
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .doc-hash {
@@ -374,8 +388,8 @@ interface BlockchainActivity {
     }
 
     .action-btn {
-      width: 30px;
-      height: 30px;
+      width: 28px;
+      height: 28px;
       padding: 0;
       margin: 0;
       background: transparent;
@@ -396,8 +410,8 @@ interface BlockchainActivity {
     }
 
     .action-icon {
-      width: 14px;
-      height: 14px;
+      width: 13px;
+      height: 13px;
     }
 
     .empty-state {
@@ -592,8 +606,8 @@ interface BlockchainActivity {
         height: 40px;
       }
 
-      .data-table {
-        min-width: 760px;
+      .doc-name {
+        max-width: 180px;
       }
     }
   `]

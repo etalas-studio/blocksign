@@ -28,7 +28,7 @@ const STEPS: TransactionStepInfo[] = [
   template: `
     @if (open()) {
       <div class="tx-modal-overlay" (click)="onOverlayClick()">
-        <div class="tx-modal-content" (click)="$event.stopPropagation()">
+        <div class="tx-modal-content" role="dialog" aria-modal="true" aria-label="Transaction progress" (click)="$event.stopPropagation()">
           <div class="tx-modal-header">
             <h3>Transaction Progress</h3>
             @if (canClose()) {
@@ -51,7 +51,7 @@ const STEPS: TransactionStepInfo[] = [
               <div class="tx-progress-bar">
                 <div
                   class="tx-progress-fill"
-                  [style.width.%]="progressPercent()"
+                  [style.transform]="'scaleX(' + (progressPercent() / 100) + ')'"
                   [class.completed]="isCompleted()"
                   [class.error]="isFailed()"
                 ></div>
@@ -147,13 +147,14 @@ const STEPS: TransactionStepInfo[] = [
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.45);
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       z-index: 1000;
       animation: fadeIn 0.2s ease;
-      backdrop-filter: blur(4px);
+      padding: 20px 16px;
+      overflow-y: auto;
     }
 
     @keyframes fadeIn {
@@ -162,12 +163,16 @@ const STEPS: TransactionStepInfo[] = [
     }
 
     .tx-modal-content {
-      background: white;
+      background: var(--color-bg-card);
       border-radius: var(--radius-lg);
       width: 90%;
       max-width: 480px;
       box-shadow: var(--shadow-lg);
       animation: slideUp 0.3s ease;
+      max-height: calc(100vh - 40px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
     @keyframes slideUp {
@@ -211,6 +216,7 @@ const STEPS: TransactionStepInfo[] = [
 
     .tx-modal-body {
       padding: var(--spacing-lg);
+      overflow-y: auto;
     }
 
     .tx-current-step {
@@ -218,13 +224,22 @@ const STEPS: TransactionStepInfo[] = [
       align-items: center;
       gap: var(--spacing-md);
       margin-bottom: var(--spacing-lg);
-      padding: var(--spacing-lg);
+      padding: var(--spacing-md);
       background: var(--color-bg);
       border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
     }
 
     .tx-step-icon {
-      font-size: 32px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--color-bg-card);
+      font-size: 18px;
+      flex-shrink: 0;
     }
 
     .tx-step-info h4 {
@@ -257,7 +272,8 @@ const STEPS: TransactionStepInfo[] = [
     .tx-progress-fill {
       height: 100%;
       background: var(--color-primary);
-      transition: width 0.3s ease;
+      transform-origin: left center;
+      transition: transform 0.24s linear;
     }
 
     .tx-progress-fill.completed {
@@ -287,7 +303,7 @@ const STEPS: TransactionStepInfo[] = [
       display: flex;
       align-items: center;
       gap: var(--spacing-md);
-      padding: var(--spacing-sm);
+      padding: 6px 8px;
       border-radius: var(--radius-md);
       transition: background var(--transition-fast);
     }
@@ -429,6 +445,24 @@ const STEPS: TransactionStepInfo[] = [
       display: flex;
       gap: var(--spacing-sm);
       justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 640px) {
+      .tx-modal-overlay {
+        padding: 12px;
+      }
+
+      .tx-modal-content {
+        width: 100%;
+        max-width: none;
+        max-height: calc(100vh - 24px);
+      }
+
+      .tx-modal-header,
+      .tx-modal-body {
+        padding: var(--spacing-md);
+      }
     }
   `]
 })

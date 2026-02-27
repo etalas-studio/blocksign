@@ -38,12 +38,18 @@ type TransactionStep = 'initializing' | 'signing' | 'submitting' | 'submitted' |
             <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd" />
           </svg>
           <span>Sign Document</span>
+        }
+      </button>
+
+      @if (!signingState().signing && !signingState().pending && !signingState().signed) {
+        <div class="sign-help">
+          <span>Creates an immutable on-chain signature</span>
           <app-tooltip-icon
             title="Sign on Blockchain"
             content="Sign the document hash with your wallet. The signature will be permanently recorded on the blockchain."
           />
-        }
-      </button>
+        </div>
+      }
 
       @if (signingState().error) {
         <div class="error-message animate-shake">
@@ -89,26 +95,26 @@ type TransactionStep = 'initializing' | 'signing' | 'submitting' | 'submitted' |
 
     .sign-btn {
       width: 100%;
-      padding: 16px 24px;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
+      padding: 12px 16px;
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-md);
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      gap: 10px;
+      background: var(--color-primary);
       color: white;
-      position: relative;
-      overflow: hidden;
+      min-height: 52px;
     }
 
     .sign-btn:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+      background: var(--color-primary-hover);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
     }
 
     .sign-btn:active:not(:disabled) {
@@ -121,9 +127,19 @@ type TransactionStep = 'initializing' | 'signing' | 'submitting' | 'submitted' |
       transform: none;
     }
 
+    .sign-help {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+    }
+
     .spinner {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       border: 2px solid rgba(255, 255, 255, 0.3);
       border-top-color: white;
       border-radius: 50%;
@@ -136,21 +152,21 @@ type TransactionStep = 'initializing' | 'signing' | 'submitting' | 'submitted' |
 
     .sign-icon,
     .check-icon {
-      width: 24px;
-      height: 24px;
+      width: 18px;
+      height: 18px;
     }
 
     .check-icon {
-      color: #10b981;
+      color: var(--color-success);
     }
 
     .error-message {
       margin-top: 12px;
       padding: 12px;
-      background: #fef2f2;
-      border: 1px solid #fecaca;
+      background: color-mix(in srgb, var(--color-error) 8%, transparent);
+      border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
       border-radius: 8px;
-      color: #991b1b;
+      color: var(--color-error);
       font-size: 14px;
       display: flex;
       align-items: center;
@@ -164,15 +180,15 @@ type TransactionStep = 'initializing' | 'signing' | 'submitting' | 'submitted' |
     .tx-info {
       margin-top: 16px;
       padding: 12px;
-      background: #f0fdf4;
-      border: 1px solid #86efac;
+      background: color-mix(in srgb, var(--color-success) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--color-success) 35%, transparent);
       border-radius: 8px;
     }
 
     .tx-info p {
       margin: 0 0 8px 0;
       font-size: 14px;
-      color: #166534;
+      color: var(--color-text-primary);
       font-weight: 500;
     }
 
@@ -180,7 +196,7 @@ type TransactionStep = 'initializing' | 'signing' | 'submitting' | 'submitted' |
       display: flex;
       align-items: center;
       gap: 4px;
-      color: #667eea;
+      color: var(--color-primary);
       text-decoration: none;
       font-size: 14px;
       font-weight: 600;
