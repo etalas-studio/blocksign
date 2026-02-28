@@ -1,11 +1,12 @@
-import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { Component, inject, OnInit, signal, computed, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterModule, ActivatedRoute, NavigationEnd } from '@angular/router';
 import { WalletService } from '../../../../core/services/wallet.service';
 import { ApiService } from '../../../../core/services/api.service';
 import { DocumentResponse, DocumentMetrics } from '../../../../core/models/api.model';
 import { ErrorDisplayComponent } from '../../../../shared/components';
 import { SkeletonLoaderComponent } from '../../../../shared/components';
+import { Subscription, filter } from 'rxjs';
 
 interface MetricCard {
   title: string;
@@ -629,10 +630,12 @@ interface BlockchainActivity {
     }
   `]
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   walletService = inject(WalletService);
   private apiService = inject(ApiService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private routeSubscription: Subscription | null = null;
 
   // State with signals
   loading = signal(false);
@@ -693,7 +696,29 @@ export class DashboardComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    // Load initial data
     this.loadData();
+
+    // Subscribe to route URL changes to reload data when navigating
+    // This handles the case where the same component is reused for different routes
+    this.routeSubscription = this.route.url.subscribe((segments) => {
+      const url = '/' + segments.join('/');
+      console.log('Route URL changed:', url);
+      // Reload data for specific routes that need fresh data
+      const reloadRoutes = ['/documents', '/signatures', '/contracts',
+                            '/wallets', '/identity', '/reports', '/help', '/api-keys', '/profile'];
+      if (reloadRoutes.includes(url)) {
+        console.log('Reloading data for:', url);
+        this.loadData();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    // Clean up subscription
+    if (this.routeSubscription) {
+      this.routeSubscription.unsubscribe();
+    }
   }
 
   private loadData() {
@@ -706,11 +731,10 @@ export class DashboardComponent implements OnInit {
   }
 
   private loadMetrics() {
-    const walletState = this.walletService.getWalletState();
-    const wallet = walletState.connected && walletState.address ? walletState.address : undefined;
-
-    this.apiService.getDocumentMetrics(wallet).subscribe({
+    // Get metrics for all documents, not filtered by wallet
+    this.apiService.getDocumentMetrics().subscribe({
       next: (metrics) => {
+        console.log('Metrics response:', metrics);
         this.metrics.set(metrics);
       },
       error: (err) => {
@@ -721,11 +745,10 @@ export class DashboardComponent implements OnInit {
   }
 
   private loadDocuments() {
-    const walletState = this.walletService.getWalletState();
-    const wallet = walletState.connected && walletState.address ? walletState.address : undefined;
-
-    this.apiService.getDocuments({ wallet, limit: 10, offset: 0 }).subscribe({
+    // Don't filter by wallet for the dashboard - show all documents
+    this.apiService.getDocuments({ limit: 10, offset: 0 }).subscribe({
       next: (response) => {
+        console.log('Documents response:', response);
         this.documents.set(response.documents);
         this.loading.set(false);
       },

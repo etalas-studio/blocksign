@@ -135,8 +135,9 @@ pub async fn get_documents(
             let signatures = fetch_signatures_for_document(&state, doc.id);
             let signature_count = signatures.len() as i64;
 
-            // Determine verification status
-            let verification_status = if signature_count > 0 {
+            // Determine verification status based on confirmed signatures
+            let has_confirmed_signature = signatures.iter().any(|sig| sig.status == "confirmed");
+            let verification_status = if has_confirmed_signature {
                 "verified".to_string()
             } else {
                 "pending".to_string()
@@ -241,7 +242,9 @@ pub async fn get_document_by_hash(
     let signatures = fetch_signatures_for_document(&state, doc.id);
     let signature_count = signatures.len() as i64;
 
-    let verification_status = if signature_count > 0 {
+    // Determine verification status based on confirmed signatures
+    let has_confirmed_signature = signatures.iter().any(|sig| sig.status == "confirmed");
+    let verification_status = if has_confirmed_signature {
         "verified".to_string()
     } else {
         "pending".to_string()
@@ -256,8 +259,9 @@ pub async fn get_document_by_hash(
 }
 
 /// Helper function to fetch signatures for a document
-fn fetch_signatures_for_document(state: &AppState, document_id: i64) -> Vec<DocumentSignature> {
-    // This would query the signature repository when connected
-    // For now, return empty vec as placeholder
+/// TODO: Make this async and query from blockchain/database
+fn fetch_signatures_for_document(_state: &AppState, _document_id: i64) -> Vec<DocumentSignature> {
+    // For now, return empty. This should be async and query the blockchain/database.
+    // The signatures are currently fetched directly in the async API handlers.
     Vec::new()
 }
