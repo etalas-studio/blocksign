@@ -10,6 +10,7 @@ use axum::{
     Json,
 };
 use chrono::{DateTime, Utc};
+use futures::future::join_all;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -128,11 +129,18 @@ pub async fn get_documents(
         state.db.documents.count().await.unwrap_or(0)
     };
 
+    // Fetch signatures for all documents
+    let document_ids: Vec<i64> = documents.iter().map(|d| d.id).collect();
+    let signatures_futures: Vec<_> = document_ids
+        .into_iter()
+        .map(|id| fetch_signatures_for_document(&state, id))
+        .collect();
+    let all_signatures = join_all(signatures_futures).await;
+
     let document_responses: Vec<DocumentResponse> = documents
         .into_iter()
-        .map(|mut doc| {
-            // Fetch signatures for this document
-            let signatures = fetch_signatures_for_document(&state, doc.id);
+        .zip(all_signatures)
+        .map(|(doc, signatures)| {
             let signature_count = signatures.len() as i64;
 
             // Determine verification status based on confirmed signatures
@@ -198,8 +206,15 @@ pub async fn get_document_metrics(
     let mut verified_documents = 0i64;
     let mut unique_signers = std::collections::HashSet::new();
 
-    for doc in &documents {
-        let sigs = fetch_signatures_for_document(&state, doc.id);
+    // Fetch signatures for all documents
+    let document_ids: Vec<i64> = documents.iter().map(|d| d.id).collect();
+    let signatures_futures: Vec<_> = document_ids
+        .into_iter()
+        .map(|id| fetch_signatures_for_document(&state, id))
+        .collect();
+    let all_signatures = join_all(signatures_futures).await;
+
+    for sigs in all_signatures {
         let sig_count = sigs.len() as i64;
         total_signatures += sig_count;
 
@@ -239,7 +254,7 @@ pub async fn get_document_by_hash(
         .map_err(|e| AppError::InternalError(format!("Failed to fetch document: {}", e)))?
         .ok_or_else(|| AppError::NotFoundError(format!("Document with hash {} not found", hash)))?;
 
-    let signatures = fetch_signatures_for_document(&state, doc.id);
+    let signatures = fetch_signatures_for_document(&state, doc.id).await;
     let signature_count = signatures.len() as i64;
 
     // Determine verification status based on confirmed signatures
@@ -258,10 +273,21 @@ pub async fn get_document_by_hash(
     Ok(Json(doc_response))
 }
 
-/// Helper function to fetch signatures for a document
-/// TODO: Make this async and query from blockchain/database
-fn fetch_signatures_for_document(_state: &AppState, _document_id: i64) -> Vec<DocumentSignature> {
-    // For now, return empty. This should be async and query the blockchain/database.
-    // The signatures are currently fetched directly in the async API handlers.
-    Vec::new()
+/// Helper function to fetch signatures for a document from database
+async fn fetch_signatures_for_document(state: &AppState, document_id: i64) -> Vec<DocumentSignature> {
+    state
+        .db
+        .signatures
+        .list_by_document(document_id)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|sig| DocumentSignature {
+            wallet_address: sig.signer_address,
+            signed_at: sig.timestamp,
+            tx_hash: sig.blockchain_tx,
+            block_number: sig.block_number,
+            status: sig.status,
+        })
+        .collect()
 }

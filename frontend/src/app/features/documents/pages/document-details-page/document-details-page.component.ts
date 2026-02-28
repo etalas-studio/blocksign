@@ -115,7 +115,7 @@ interface DocumentDetails {
                   rel="noopener noreferrer"
                   class="btn-link"
                 >
-                  🔗 Verify on Blockchain
+                  🔗 {{ blockchainExplorerLinkText() }}
                 </a>
               </div>
             </div>
@@ -494,8 +494,17 @@ export class DocumentDetailsPageComponent implements OnInit {
   });
 
   blockchainExplorerUrl = computed(() => {
-    const hash = this.document()?.hash;
-    return `${environment.blockExplorerUrl}/search?q=${hash}`;
+    const doc = this.document();
+    if (!doc) return '';
+
+    // Use the first signature's transaction hash if available
+    if (doc.signatures && doc.signatures.length > 0) {
+      const firstTxHash = doc.signatures[0].txHash;
+      return `${environment.blockExplorerUrl}/tx/${firstTxHash}`;
+    }
+
+    // Fallback to search by document hash if no signatures yet
+    return `${environment.blockExplorerUrl}/search?q=${doc.hash}`;
   });
 
   ngOnInit(): void {
@@ -512,13 +521,29 @@ export class DocumentDetailsPageComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    // Use getDocumentDetails instead of getDocumentByHash
+    // Use getDocumentDetails which includes signatures
     this.apiService.getDocumentDetails(hash)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
-          // Load blockchain signatures with the document info
-          this.loadBlockchainSignatures(hash, data);
+          // Transform API data to DocumentDetails format
+          const docDetails: DocumentDetails = {
+            hash: data.hash,
+            uploadDate: data.uploaded_at,
+            fileName: data.name,
+            fileSize: data.file_size,
+            signatures: data.signatures.map(sig => ({
+              signer: sig.wallet_address,
+              docHash: hash,
+              timestamp: new Date(sig.signed_at).getTime() / 1000,
+              txHash: sig.tx_hash || '',
+              blockNumber: sig.block_number,
+              status: sig.status === 'confirmed' ? 'confirmed' : 'pending'
+            }))
+          };
+
+          this.document.set(docDetails);
+          this.loading.set(false);
         },
         error: (err) => {
           console.error('Error loading document:', err);
@@ -528,40 +553,23 @@ export class DocumentDetailsPageComponent implements OnInit {
       });
   }
 
-  loadBlockchainSignatures(hash: string, apiData?: any): void {
-    this.contractService.getSignatures(hash).then((signatures) => {
-      const docDetails: DocumentDetails = {
-        hash,
-        uploadDate: apiData?.uploaded_at || new Date().toISOString(),
-        fileName: apiData?.name,
-        fileSize: apiData?.file_size,
-        signatures: signatures.map(sig => ({
-          signer: sig.signer,
-          docHash: sig.docHash,
-          timestamp: Number(sig.timestamp),
-          txHash: '0x' + sig.signature.slice(0, 40),
-          status: 'confirmed'
-        }))
-      };
-
-      this.document.set(docDetails);
-      this.loading.set(false);
-    }).catch((err) => {
-      console.error('Error loading signatures:', err);
-      // Even if signatures fail to load, show the document info from API
-      this.document.set({
-        hash,
-        uploadDate: apiData?.uploaded_at || new Date().toISOString(),
-        fileName: apiData?.name,
-        fileSize: apiData?.file_size,
-        signatures: []
-      });
-      this.loading.set(false);
-    });
-  }
-
   getTxExplorerUrl(txHash: string): string {
     return `${environment.blockExplorerUrl}/tx/${txHash}`;
+  }
+
+  blockchainExplorerLinkText(): string {
+    const doc = this.document();
+    if (!doc) return 'View on Blockchain';
+
+    // If we have signatures, show "View Transaction"
+    if (doc.signatures && doc.signatures.length > 0) {
+      return doc.signatures.length === 1
+        ? 'View Transaction'
+        : 'View First Transaction';
+    }
+
+    // Otherwise show "Verify on Blockchain"
+    return 'Verify on Blockchain';
   }
 
   openQRModal(): void {

@@ -2,8 +2,8 @@
 //!
 //! This service handles file uploads, storage, and retrieval with database persistence.
 
-use crate::db::models::{NewDocument, Document};
-use crate::db::repositories::{DocumentRepository, AuditLogRepository, WalletRepository};
+use crate::db::models::{NewDocument, Document, NewSignature};
+use crate::db::repositories::{DocumentRepository, AuditLogRepository, WalletRepository, SignatureRepository};
 use crate::models::{AppError, FileUpload};
 use anyhow::{Context, Result};
 use chrono::Utc;
@@ -24,6 +24,7 @@ pub struct DatabaseRepositories {
     pub documents: Arc<DocumentRepository>,
     pub audit_logs: Arc<AuditLogRepository>,
     pub wallets: Arc<WalletRepository>,
+    pub signatures: Arc<SignatureRepository>,
 }
 
 impl StorageService {
@@ -144,6 +145,19 @@ impl StorageService {
         // Track wallet
         let _ = self.db.wallets.get_or_create(&signer, 80002).await;
         let _ = self.db.wallets.update_last_seen(&signer).await;
+
+        // Create signature record in database
+        let _ = self.db.signatures.create(&NewSignature {
+            document_id: doc.id,
+            signer_address: signer.clone(),
+            signature_hash: format!("{}:{}", tx_hash, signer), // Simple unique hash
+            timestamp: Utc::now(),
+            blockchain_tx: Some(tx_hash.clone()),
+            block_number: None, // Will be updated when transaction is confirmed
+            gas_used: None,
+            network: 80002, // Polygon Amoy
+            status: "confirmed".to_string(),
+        }).await;
 
         // Log audit event
         let _ = self.db.audit_logs.create(&crate::db::models::NewAuditLog {

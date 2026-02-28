@@ -69,6 +69,7 @@ async fn main() -> anyhow::Result<()> {
         documents: db_state.documents.clone(),
         audit_logs: db_state.audit_logs.clone(),
         wallets: db_state.wallets.clone(),
+        signatures: db_state.signatures.clone(),
     };
 
     // Initialize services

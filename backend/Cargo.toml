@@ -22,4 +22,5 @@ dotenv = "0.15"
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+futures = "0.3.32"
 
