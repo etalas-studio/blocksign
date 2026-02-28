@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, DestroyRef, computed } from '@angular/core';
+import { Component, inject, OnInit, DestroyRef, computed, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -7,7 +7,6 @@ import { VerificationService, VerificationResult, VerificationStatus, SignatureR
 import { DocumentHasherService } from '../../../../core/services/document-hasher.service';
 import { ProofDownloadService } from '../../../../core/services/proof-download.service';
 import { SignatureCardComponent } from '../../../../shared/components/signature-card/signature-card.component';
-import { EmptyStateComponent } from '../../../../shared/components/empty-state/empty-state.component';
 import { ConfettiService } from '../../../../core/services/confetti.service';
 
 type TabType = 'hash' | 'file';
@@ -15,7 +14,7 @@ type TabType = 'hash' | 'file';
 @Component({
   selector: 'app-verify-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, SignatureCardComponent, EmptyStateComponent],
+  imports: [CommonModule, FormsModule, SignatureCardComponent],
   template: `
     <div class="verify-page">
       <!-- Page Header -->
@@ -179,6 +178,11 @@ type TabType = 'hash' | 'file';
             <div class="status-content">
               <h3>{{ statusDisplay().title }}</h3>
               <p>{{ statusDisplay().description }}</p>
+              @if (!result.verified) {
+                <button type="button" class="status-inline-action" (click)="resetVerification()">
+                  Try another document
+                </button>
+              }
             </div>
           </div>
 
@@ -272,39 +276,28 @@ type TabType = 'hash' | 'file';
             </div>
           }
 
-          <!-- Not Found Message -->
-          @if (!result.verified && result.signatures.length === 0) {
-            <app-empty-state
-              icon="🔍"
-              title="No Signatures Found"
-              description="This document has not been signed on BlockSign. Make sure you have the correct file or contact the document sender."
-              actionText="Try Another Document"
-              (action)="resetVerification()"
-            />
-          }
-
           <!-- Action Buttons -->
-          <div class="action-buttons">
-            <button class="action-btn secondary" (click)="shareVerification()">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="18" cy="5" r="3"/>
-                <circle cx="6" cy="12" r="3"/>
-                <circle cx="18" cy="19" r="3"/>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-              </svg>
-              Share
-            </button>
-
-            <button class="action-btn secondary" (click)="copyLink()">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-              </svg>
-              Copy Link
-            </button>
-
+          <div class="action-buttons" [class.compact]="!result.verified">
             @if (result.verified) {
+              <button class="action-btn secondary" (click)="shareVerification()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"/>
+                  <circle cx="6" cy="12" r="3"/>
+                  <circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+                Share
+              </button>
+
+              <button class="action-btn secondary" (click)="copyLink()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+                Copy Link
+              </button>
+
               <button class="action-btn secondary" (click)="downloadProof('json')">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -324,14 +317,21 @@ type TabType = 'hash' | 'file';
                 </svg>
                 Download Certificate
               </button>
-            }
 
-            <button class="action-btn secondary" (click)="resetVerification()">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-              </svg>
-              Verify Another
-            </button>
+              <button class="action-btn secondary" (click)="resetVerification()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+                Verify Another
+              </button>
+            } @else {
+              <button class="action-btn primary" (click)="resetVerification()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+                Verify Another Document
+              </button>
+            }
           </div>
         </div>
       }
@@ -357,8 +357,12 @@ type TabType = 'hash' | 'file';
   `,
   styles: [`
     .verify-page {
-      max-width: 760px;
+      max-width: 860px;
       margin: 0 auto;
+    }
+
+    .page-header {
+      margin-bottom: 20px;
     }
 
     .page-header h1 {
@@ -625,16 +629,16 @@ type TabType = 'hash' | 'file';
     .result-section {
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 20px;
     }
 
     .status-banner {
       display: flex;
       align-items: flex-start;
       gap: 16px;
-      padding: 24px;
+      padding: 18px 20px;
       border-radius: var(--radius-lg);
-      border: 2px solid;
+      border: 1px solid;
     }
 
     .status-banner.status-success {
@@ -692,6 +696,34 @@ type TabType = 'hash' | 'file';
       margin: 0;
       font-size: 14px;
       color: var(--color-text-secondary);
+    }
+
+    .status-content {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .status-inline-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 6px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      background: var(--color-bg-card);
+      color: var(--color-text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-base);
+    }
+
+    .status-inline-action:hover {
+      border-color: var(--color-primary);
+      color: var(--color-primary);
     }
 
     .info-card {
@@ -826,8 +858,13 @@ type TabType = 'hash' | 'file';
 
     .action-buttons {
       display: flex;
-      flex-wrap: nowrap;
-      gap: 10px;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .action-buttons.compact {
+      margin-top: -4px;
     }
 
     .action-btn {
@@ -836,6 +873,7 @@ type TabType = 'hash' | 'file';
       justify-content: center;
       gap: 8px;
       padding: 10px 14px;
+      min-height: 40px;
       background: var(--color-bg-card);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
@@ -904,6 +942,10 @@ type TabType = 'hash' | 'file';
     }
 
     @media (max-width: 640px) {
+      .verify-page {
+        max-width: 100%;
+      }
+
       .page-header h1 {
         font-size: 24px;
       }
@@ -935,6 +977,7 @@ export class VerifyPageComponent implements OnInit {
   private proofService = inject(ProofDownloadService);
   private confettiService = inject(ConfettiService);
   private destroyRef = inject(DestroyRef);
+  private cdRef = inject(ChangeDetectorRef);
 
   inputMethod: TabType = 'hash';
   documentHash = '';
@@ -1017,29 +1060,43 @@ export class VerifyPageComponent implements OnInit {
       return;
     }
 
+    console.log('[verifyFile] Starting file verification');
     this.isVerifying = true;
     this.errorMessage = '';
 
     try {
       const result = await this.verificationService.verifyFile(this.selectedFile, (status) => {
+        console.log('[verifyFile] Status update:', status);
         this.progressText = status.message || 'Verifying...';
       });
+      console.log('[verifyFile] Got result:', result);
       this.displayResult(result);
     } catch (error: any) {
+      console.error('[verifyFile] Verification error:', error);
       this.errorMessage = error.message || 'Failed to verify document';
       console.error('Verification error:', error);
     } finally {
+      console.log('[verifyFile] Verification complete, isVerifying = false');
       this.isVerifying = false;
       this.selectedFile = null;
     }
   }
 
   private displayResult(result: VerificationResult): void {
+    console.log('[displayResult] Called with result:', result);
+    console.log('[displayResult] Before - result:', this.result, 'showInput:', this.showInput);
     this.result = result;
     this.showInput = false;
+    console.log('[displayResult] After - result:', this.result, 'showInput:', this.showInput);
+
+    // Trigger change detection to update the UI
+    this.cdRef.markForCheck();
 
     if (result.verified) {
+      console.log('[displayResult] Triggering confetti');
       this.confettiService.success();
+    } else {
+      console.log('[displayResult] Not verified, no confetti');
     }
   }
 

@@ -44,58 +44,11 @@ export class VerificationService {
   private readonly NETWORK_NAME = 'Polygon Amoy Testnet';
 
   /**
-   * Verify a document by hash (from blockchain directly)
+   * Verify a document by hash (using backend API to avoid CORS issues)
    */
   async verifyByHash(documentHash: string): Promise<VerificationResult> {
-    const normalizedHash = this.hasherService.normalizeHash(documentHash);
-
-    // Validate hash format
-    if (!this.hasherService.isValidHash(normalizedHash)) {
-      throw new Error('Invalid document hash format');
-    }
-
-    try {
-      // Query blockchain for signatures
-      const signatures = await this.contractService.getSignatures(normalizedHash);
-
-      if (signatures.length === 0) {
-        return {
-          verified: false,
-          documentHash: normalizedHash,
-          signatures: [],
-          totalSignatures: 0,
-          verificationDate: new Date()
-        };
-      }
-
-      // Enhance signatures with additional data
-      const enhancedSignatures: SignatureRecord[] = signatures.map(sig => ({
-        signer: sig.signer,
-        docHash: sig.docHash,
-        timestamp: sig.timestamp,
-        signature: sig.signature,
-        network: this.NETWORK_NAME
-      }));
-
-      // Calculate date range
-      const timestamps = signatures.map(s => s.timestamp).sort((a, b) => a - b);
-      const firstSignatureDate = new Date(timestamps[0] * 1000);
-      const lastSignatureDate = new Date(timestamps[timestamps.length - 1] * 1000);
-
-      return {
-        verified: true,
-        documentHash: normalizedHash,
-        signatures: enhancedSignatures,
-        firstSignatureDate,
-        lastSignatureDate,
-        totalSignatures: signatures.length,
-        verificationDate: new Date()
-      };
-
-    } catch (error: any) {
-      console.error('Error verifying by hash:', error);
-      throw new Error('Failed to verify document on blockchain');
-    }
+    // Use backend API instead of direct blockchain queries to avoid CORS
+    return this.verifyViaBackend(documentHash);
   }
 
   /**
@@ -139,16 +92,19 @@ export class VerificationService {
    */
   async verifyViaBackend(documentHash: string): Promise<VerificationResult> {
     const normalizedHash = this.hasherService.normalizeHash(documentHash);
+    console.log('[verifyViaBackend] Starting verification for hash:', normalizedHash);
 
     return new Promise((resolve, reject) => {
       this.apiService.verifyDocument(normalizedHash).subscribe({
         next: (response) => {
+          console.log('[verifyViaBackend] Received response:', response);
           if (response.verified && response.signatures.length > 0) {
+            console.log('[verifyViaBackend] Document verified with', response.signatures.length, 'signatures');
             const timestamps = response.signatures
               .map((s: any) => s.timestamp || s.date)
               .sort((a: number, b: number) => a - b);
 
-            resolve({
+            const result = {
               verified: true,
               documentHash: normalizedHash,
               signatures: response.signatures.map((sig: any) => ({
@@ -164,19 +120,24 @@ export class VerificationService {
               lastSignatureDate: new Date(timestamps[timestamps.length - 1] * 1000),
               totalSignatures: response.signatures.length,
               verificationDate: new Date()
-            });
+            };
+            console.log('[verifyViaBackend] Resolving with verified result:', result);
+            resolve(result);
           } else {
-            resolve({
+            console.log('[verifyViaBackend] Document not verified or no signatures');
+            const result = {
               verified: false,
               documentHash: normalizedHash,
               signatures: [],
               totalSignatures: 0,
               verificationDate: new Date()
-            });
+            };
+            console.log('[verifyViaBackend] Resolving with unverified result:', result);
+            resolve(result);
           }
         },
         error: (error) => {
-          console.error('Error verifying via backend:', error);
+          console.error('[verifyViaBackend] Error verifying via backend:', error);
           reject(new Error('Failed to verify document'));
         }
       });

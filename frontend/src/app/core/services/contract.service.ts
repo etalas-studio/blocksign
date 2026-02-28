@@ -12,14 +12,34 @@ export class ContractService {
   private web3Service = inject(Web3Service);
 
   private contract: Contract | null = null;
+  private readOnlyContract: Contract | null = null;
   private contractAddress = environment.contractAddress;
 
   constructor() {
+    this.initializeReadOnlyContract();
     this.initializeContract();
   }
 
   /**
-   * Initialize contract instance
+   * Initialize read-only contract instance for queries
+   */
+  private initializeReadOnlyContract(): void {
+    try {
+      const provider = this.web3Service.getReadOnlyProvider();
+      if (provider) {
+        this.readOnlyContract = new Contract(
+          this.contractAddress,
+          BLOCKSIGN_ABI,
+          provider
+        );
+      }
+    } catch (error) {
+      console.error('Error initializing read-only contract:', error);
+    }
+  }
+
+  /**
+   * Initialize contract instance with signer for transactions
    */
   private async initializeContract(): Promise<void> {
     try {
@@ -37,7 +57,14 @@ export class ContractService {
   }
 
   /**
-   * Get contract instance
+   * Get read-only contract instance for queries
+   */
+  private getReadOnlyContract(): Contract | null {
+    return this.readOnlyContract;
+  }
+
+  /**
+   * Get contract instance with signer for transactions
    */
   private async getContract(): Promise<Contract | null> {
     if (!this.contract) {
@@ -93,7 +120,7 @@ export class ContractService {
    * Verify if a signer has signed a document
    */
   async verify(docHash: string, signer: string): Promise<boolean> {
-    const contract = await this.getContract();
+    const contract = this.getReadOnlyContract();
     if (!contract) {
       throw new Error('Contract not initialized');
     }
@@ -112,7 +139,7 @@ export class ContractService {
    * Get all signatures for a document
    */
   async getSignatures(docHash: string): Promise<Signature[]> {
-    const contract = await this.getContract();
+    const contract = this.getReadOnlyContract();
     if (!contract) {
       throw new Error('Contract not initialized');
     }
@@ -137,7 +164,7 @@ export class ContractService {
    * Get signature count for a document
    */
   async getSignatureCount(docHash: string): Promise<number> {
-    const contract = await this.getContract();
+    const contract = this.getReadOnlyContract();
     if (!contract) {
       throw new Error('Contract not initialized');
     }

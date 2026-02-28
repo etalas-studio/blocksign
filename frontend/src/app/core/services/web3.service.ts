@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { BrowserProvider, JsonRpcSigner } from 'ethers';
+import { BrowserProvider, JsonRpcSigner, JsonRpcProvider } from 'ethers';
 import { WalletService } from './wallet.service';
+import { environment } from '../../../environments/environment';
 import {
   TransactionState,
   emptyTransactionState,
@@ -19,9 +20,11 @@ export class Web3Service {
 
   private provider: BrowserProvider | null = null;
   private signer: JsonRpcSigner | null = null;
+  private readOnlyProvider: JsonRpcProvider | null = null;
 
   constructor() {
     this.initializeProvider();
+    this.initializeReadOnlyProvider();
   }
 
   /**
@@ -35,6 +38,17 @@ export class Web3Service {
       } catch (error) {
         console.error('Error initializing provider:', error);
       }
+    }
+  }
+
+  /**
+   * Initialize read-only provider for queries without wallet
+   */
+  private initializeReadOnlyProvider(): void {
+    try {
+      this.readOnlyProvider = new JsonRpcProvider(environment.rpcUrl);
+    } catch (error) {
+      console.error('Error initializing read-only provider:', error);
     }
   }
 
@@ -58,6 +72,20 @@ export class Web3Service {
     }
 
     return this.signer;
+  }
+
+  /**
+   * Get read-only provider for queries
+   */
+  getReadOnlyProvider(): JsonRpcProvider | null {
+    return this.readOnlyProvider;
+  }
+
+  /**
+   * Get the provider (browser or read-only)
+   */
+  getProvider(): BrowserProvider | JsonRpcProvider | null {
+    return this.provider || this.readOnlyProvider;
   }
 
   /**
