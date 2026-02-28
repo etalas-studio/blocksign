@@ -512,11 +512,14 @@ export class DocumentDetailsPageComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.apiService.getDocumentByHash(hash)
+    // Use getDocumentDetails instead of getDocumentByHash
+    this.apiService.getDocumentDetails(hash)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
-          this.loadBlockchainSignatures(hash);
+          console.log('Document API response:', data);
+          // Load blockchain signatures with the document info
+          this.loadBlockchainSignatures(hash, data);
         },
         error: (err) => {
           console.error('Error loading document:', err);
@@ -526,11 +529,13 @@ export class DocumentDetailsPageComponent implements OnInit {
       });
   }
 
-  loadBlockchainSignatures(hash: string): void {
+  loadBlockchainSignatures(hash: string, apiData?: any): void {
     this.contractService.getSignatures(hash).then((signatures) => {
       const docDetails: DocumentDetails = {
         hash,
-        uploadDate: new Date().toISOString(),
+        uploadDate: apiData?.uploaded_at || new Date().toISOString(),
+        fileName: apiData?.name,
+        fileSize: apiData?.file_size,
         signatures: signatures.map(sig => ({
           signer: sig.signer,
           docHash: sig.docHash,
@@ -540,13 +545,17 @@ export class DocumentDetailsPageComponent implements OnInit {
         }))
       };
 
+      console.log('Final document details:', docDetails);
       this.document.set(docDetails);
       this.loading.set(false);
     }).catch((err) => {
       console.error('Error loading signatures:', err);
+      // Even if signatures fail to load, show the document info from API
       this.document.set({
         hash,
-        uploadDate: new Date().toISOString(),
+        uploadDate: apiData?.uploaded_at || new Date().toISOString(),
+        fileName: apiData?.name,
+        fileSize: apiData?.file_size,
         signatures: []
       });
       this.loading.set(false);
