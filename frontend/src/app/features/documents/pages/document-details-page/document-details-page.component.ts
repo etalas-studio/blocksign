@@ -517,7 +517,6 @@ export class DocumentDetailsPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
-          console.log('Document API response:', data);
           // Load blockchain signatures with the document info
           this.loadBlockchainSignatures(hash, data);
         },
@@ -545,7 +544,6 @@ export class DocumentDetailsPageComponent implements OnInit {
         }))
       };
 
-      console.log('Final document details:', docDetails);
       this.document.set(docDetails);
       this.loading.set(false);
     }).catch((err) => {

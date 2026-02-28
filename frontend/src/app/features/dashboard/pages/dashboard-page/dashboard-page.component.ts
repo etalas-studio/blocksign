@@ -703,12 +703,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // This handles the case where the same component is reused for different routes
     this.routeSubscription = this.route.url.subscribe((segments) => {
       const url = '/' + segments.join('/');
-      console.log('Route URL changed:', url);
       // Reload data for specific routes that need fresh data
       const reloadRoutes = ['/documents', '/signatures', '/contracts',
                             '/wallets', '/identity', '/reports', '/help', '/api-keys', '/profile'];
       if (reloadRoutes.includes(url)) {
-        console.log('Reloading data for:', url);
         this.loadData();
       }
     });
@@ -734,7 +732,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Get metrics for all documents, not filtered by wallet
     this.apiService.getDocumentMetrics().subscribe({
       next: (metrics) => {
-        console.log('Metrics response:', metrics);
         this.metrics.set(metrics);
       },
       error: (err) => {
@@ -748,7 +745,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Don't filter by wallet for the dashboard - show all documents
     this.apiService.getDocuments({ limit: 10, offset: 0 }).subscribe({
       next: (response) => {
-        console.log('Documents response:', response);
         this.documents.set(response.documents);
         this.loading.set(false);
       },

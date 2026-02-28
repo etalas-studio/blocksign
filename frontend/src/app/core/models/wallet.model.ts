@@ -45,8 +45,8 @@ export const NETWORKS: Record<number, NetworkInfo> = {
     rpcUrl: 'https://polygon-amoy.blockpi.network/v1/rpc/public',
     blockExplorer: 'https://amoy.polygonscan.com',
     nativeCurrency: {
-      name: 'MATIC',
-      symbol: 'MATICT',
+      name: 'POL',
+      symbol: 'POL',
       decimals: 18
     }
   },
@@ -56,8 +56,8 @@ export const NETWORKS: Record<number, NetworkInfo> = {
     rpcUrl: 'https://polygon-rpc.com',
     blockExplorer: 'https://polygonscan.com',
     nativeCurrency: {
-      name: 'MATIC',
-      symbol: 'MATIC',
+      name: 'POL',
+      symbol: 'POL',
       decimals: 18
     }
   },

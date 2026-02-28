@@ -115,10 +115,10 @@ async fn main() -> anyhow::Result<()> {
         // Transaction endpoints
         .route("/api/tx/:hash", post(post_tx_hash))
         .route("/api/verify/:hash", get(get_verification))
-        // Documents endpoints
-        .route("/api/documents", get(get_documents))
+        // Documents endpoints (order matters - more specific routes first)
         .route("/api/documents/metrics", get(get_document_metrics))
         .route("/api/documents/:hash", get(get_document_by_hash))
+        .route("/api/documents", get(get_documents))
         // Audit endpoints
         .route("/api/audit", get(get_audit_logs))
         .route("/api/audit/stats", get(get_audit_stats))

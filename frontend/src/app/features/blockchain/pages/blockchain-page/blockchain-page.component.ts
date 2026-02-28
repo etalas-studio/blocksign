@@ -1,35 +1,28 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WalletService } from '../../../../core/services/wallet.service';
-
-interface BlockchainTransaction {
-  txHash: string;
-  blockNumber: number;
-  timestamp: Date;
-  from: string;
-  to: string;
-  value: string;
-  gasUsed: string;
-  status: 'success' | 'pending' | 'failed';
-  type: 'signature' | 'verification' | 'upload' | 'contract_interaction';
-  documentHash?: string;
-}
-
-interface ContractInfo {
-  address: string;
-  name: string;
-  network: string;
-  totalTransactions: number;
-  lastUpdate: Date;
-}
+import { ApiService } from '../../../../core/services/api.service';
+import {
+  BlockchainStatsResponse,
+  BlockchainTransactionResponse,
+  ContractInfo as APIContractInfo,
+  TransactionQueryParams,
+  TransactionsResponse
+} from '../../../../core/models/api.model';
+import { ErrorDisplayComponent } from '../../../../shared/components';
+import { SkeletonLoaderComponent } from '../../../../shared/components';
 
 @Component({
   selector: 'app-blockchain-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ErrorDisplayComponent, SkeletonLoaderComponent],
   template: `
     <div class="blockchain-page">
+      @if (error()) {
+        <app-error-display [message]="error()!" (retry)="retry()" />
+      }
+
       <!-- Page Header -->
       <div class="page-header">
         <div class="header-content">
@@ -49,90 +42,106 @@ interface ContractInfo {
       </div>
 
       <!-- Network Stats -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-            </svg>
+      @if (loading()) {
+        <div class="stats-grid">
+          @for (i of [1,2,3,4]; track i) {
+            <app-skeleton-loader type="circle" />
+          }
+        </div>
+      } @else {
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ stats()?.transactions?.total ?? 0 }}</div>
+              <div class="stat-label">Total Transactions</div>
+            </div>
           </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.totalTransactions }}</div>
-            <div class="stat-label">Total Transactions</div>
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3v10c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ stats()?.documents?.registered ?? 0 }}</div>
+              <div class="stat-label">Documents Registered</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ stats()?.network?.block_time ?? 0 }}s</div>
+              <div class="stat-label">Avg Block Time</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">{{ stats()?.gas?.total_spent ?? '0' }}</div>
+              <div class="stat-label">Total Gas Spent (POL)</div>
+            </div>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3v10c0 6 8 10 8 10z"/>
-            </svg>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.documentsRegistered }}</div>
-            <div class="stat-label">Documents Registered</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.avgBlockTime }}s</div>
-            <div class="stat-label">Avg Block Time</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ stats.totalGasSpent }}</div>
-            <div class="stat-label">Total Gas Spent (MATIC)</div>
-          </div>
-        </div>
-      </div>
+      }
 
       <!-- Contract Info Card -->
-      <div class="contract-card">
-        <div class="contract-header">
-          <div class="contract-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
+      @if (loading()) {
+        <div class="contract-card">
+          <app-skeleton-loader type="row" />
+        </div>
+      } @else if (stats()?.contract) {
+        <div class="contract-card">
+          <div class="contract-header">
+            <div class="contract-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </div>
+            <div class="contract-info">
+              <h2>BlockSign Smart Contract</h2>
+              <div class="contract-address">{{ formatAddress(stats()!.contract!.address) }}</div>
+            </div>
+            @if (stats()!.contract!.verified) {
+              <div class="contract-badge verified">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Verified
+              </div>
+            }
           </div>
-          <div class="contract-info">
-            <h2>BlockSign Smart Contract</h2>
-            <div class="contract-address">{{ contractInfo.address }}</div>
-          </div>
-          <div class="contract-badge verified">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-            Verified
+          <div class="contract-details">
+            <div class="contract-detail">
+              <span class="detail-label">Network</span>
+              <span class="detail-value">{{ stats()!.contract!.network }}</span>
+            </div>
+            <div class="contract-detail">
+              <span class="detail-label">Total Transactions</span>
+              <span class="detail-value">{{ stats()?.transactions?.total ?? 0 }}</span>
+            </div>
+            <div class="contract-detail">
+              <span class="detail-label">Deployed At</span>
+              <span class="detail-value">{{ stats()!.contract!.deployed_at | date:'medium' }}</span>
+            </div>
           </div>
         </div>
-        <div class="contract-details">
-          <div class="contract-detail">
-            <span class="detail-label">Network</span>
-            <span class="detail-value">{{ contractInfo.network }}</span>
-          </div>
-          <div class="contract-detail">
-            <span class="detail-label">Total Transactions</span>
-            <span class="detail-value">{{ contractInfo.totalTransactions }}</span>
-          </div>
-          <div class="contract-detail">
-            <span class="detail-label">Last Activity</span>
-            <span class="detail-value">{{ contractInfo.lastUpdate | date:'medium' }}</span>
-          </div>
-        </div>
-      </div>
+      }
 
       <!-- Transactions -->
       <div class="transactions-card">
@@ -156,71 +165,77 @@ interface ContractInfo {
           </div>
         </div>
 
-        <div class="transactions-list">
-          @for (tx of filteredTransactions; track tx.txHash) {
-            <div class="transaction-item">
-              <div class="transaction-icon" [ngClass]="'icon-' + tx.type">
-                <svg *ngIf="tx.type === 'signature'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 19l7-7 3 3-7-7-7 7-3-3"/>
-                </svg>
-                <svg *ngIf="tx.type === 'verification'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="9 11 12 14 22 4"/>
-                </svg>
-                <svg *ngIf="tx.type === 'upload'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="17 8 12 3 7 8"/>
-                  <line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-                <svg *ngIf="tx.type === 'contract_interaction'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        @if (loading()) {
+          <div class="transactions-list">
+            <app-skeleton-loader type="table" />
+          </div>
+        } @else {
+          <div class="transactions-list">
+            @for (tx of filteredTransactions(); track tx.tx_hash) {
+              <div class="transaction-item">
+                <div class="transaction-icon" [ngClass]="'icon-' + tx.tx_type">
+                  <svg *ngIf="tx.tx_type === 'signature'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 19l7-7 3 3-7-7-7 7-3-3"/>
+                  </svg>
+                  <svg *ngIf="tx.tx_type === 'verification'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 11 12 14 22 4"/>
+                  </svg>
+                  <svg *ngIf="tx.tx_type === 'upload'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  <svg *ngIf="tx.tx_type === 'contract_interaction'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                  </svg>
+                </div>
+                <div class="transaction-content">
+                  <div class="transaction-header">
+                    <div class="transaction-title">
+                      <span class="tx-type">{{ tx.tx_type.replace('_', ' ') | titlecase }}</span>
+                      <span class="tx-status" [ngClass]="'status-' + tx.status">{{ tx.status }}</span>
+                    </div>
+                    <div class="transaction-time">{{ tx.timestamp | date:'short' }}</div>
+                  </div>
+                  <div class="transaction-details">
+                    <div class="tx-detail">
+                      <span class="detail-label">Tx Hash</span>
+                      <span class="detail-value hash">{{ formatAddress(tx.tx_hash) }}</span>
+                    </div>
+                    <div class="tx-detail">
+                      <span class="detail-label">Block</span>
+                      <span class="detail-value">#{{ tx.block_number }}</span>
+                    </div>
+                    <div class="tx-detail">
+                      <span class="detail-label">From</span>
+                      <span class="detail-value hash">{{ formatAddress(tx.from) }}</span>
+                    </div>
+                    <div class="tx-detail">
+                      <span class="detail-label">Gas Used</span>
+                      <span class="detail-value">{{ tx.gas_used }}</span>
+                    </div>
+                    @if (tx.document_hash) {
+                      <div class="tx-detail">
+                        <span class="detail-label">Document</span>
+                        <span class="detail-value hash">{{ formatAddress(tx.document_hash) }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+            @if (filteredTransactions().length === 0) {
+              <div class="empty-transactions">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
                   <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
                 </svg>
+                <p>No transactions found</p>
               </div>
-              <div class="transaction-content">
-                <div class="transaction-header">
-                  <div class="transaction-title">
-                    <span class="tx-type">{{ tx.type.replace('_', ' ') | titlecase }}</span>
-                    <span class="tx-status" [ngClass]="'status-' + tx.status">{{ tx.status }}</span>
-                  </div>
-                  <div class="transaction-time">{{ tx.timestamp | date:'short' }}</div>
-                </div>
-                <div class="transaction-details">
-                  <div class="tx-detail">
-                    <span class="detail-label">Tx Hash</span>
-                    <span class="detail-value hash">{{ tx.txHash }}</span>
-                  </div>
-                  <div class="tx-detail">
-                    <span class="detail-label">Block</span>
-                    <span class="detail-value">#{{ tx.blockNumber }}</span>
-                  </div>
-                  <div class="tx-detail">
-                    <span class="detail-label">From</span>
-                    <span class="detail-value hash">{{ tx.from }}</span>
-                  </div>
-                  <div class="tx-detail">
-                    <span class="detail-label">Gas Used</span>
-                    <span class="detail-value">{{ tx.gasUsed }}</span>
-                  </div>
-                  @if (tx.documentHash) {
-                    <div class="tx-detail">
-                      <span class="detail-label">Document</span>
-                      <span class="detail-value hash">{{ tx.documentHash }}</span>
-                    </div>
-                  }
-                </div>
-              </div>
-            </div>
-          }
-          @if (filteredTransactions.length === 0) {
-            <div class="empty-transactions">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-              </svg>
-              <p>No transactions found</p>
-            </div>
-          }
-        </div>
+            }
+          </div>
+        }
       </div>
     </div>
   `,
@@ -617,101 +632,77 @@ interface ContractInfo {
 })
 export class BlockchainPageComponent implements OnInit {
   walletService = inject(WalletService);
+  private apiService = inject(ApiService);
 
-  stats = {
-    totalTransactions: 34,
-    documentsRegistered: 12,
-    avgBlockTime: 2,
-    totalGasSpent: '0.0234'
-  };
-
-  contractInfo: ContractInfo = {
-    address: '0x1234...5678',
-    name: 'BlockSign',
-    network: 'Polygon Amoy Testnet',
-    totalTransactions: 34,
-    lastUpdate: new Date(Date.now() - 3600000)
-  };
+  // State with signals
+  loading = signal(false);
+  error = signal<string | null>(null);
+  stats = signal<BlockchainStatsResponse | null>(null);
+  transactions = signal<BlockchainTransactionResponse[]>([]);
 
   searchQuery = '';
   typeFilter = '';
 
-  transactions: BlockchainTransaction[] = [
-    {
-      txHash: '0xabc123...def456',
-      blockNumber: 334455,
-      timestamp: new Date(Date.now() - 3600000),
-      from: '0x71C...A92F',
-      to: '0x1234...5678',
-      value: '0',
-      gasUsed: '0.000021',
-      status: 'success',
-      type: 'signature',
-      documentHash: '0xA82F...91CD'
-    },
-    {
-      txHash: '0xghi789...jkl012',
-      blockNumber: 334452,
-      timestamp: new Date(Date.now() - 7200000),
-      from: '0x71C...A92F',
-      to: '0x1234...5678',
-      value: '0',
-      gasUsed: '0.000018',
-      status: 'success',
-      type: 'verification',
-      documentHash: '0xA82F...91CD'
-    },
-    {
-      txHash: '0xmno345...pqr678',
-      blockNumber: 334450,
-      timestamp: new Date(Date.now() - 10800000),
-      from: '0x45D...3C8E',
-      to: '0x1234...5678',
-      value: '0',
-      gasUsed: '0.000025',
-      status: 'success',
-      type: 'upload',
-      documentHash: '0x5B3E...7F2A'
-    },
-    {
-      txHash: '0xstu901...vwx234',
-      blockNumber: 334448,
-      timestamp: new Date(Date.now() - 14400000),
-      from: '0x71C...A92F',
-      to: '0x1234...5678',
-      value: '0',
-      gasUsed: '0.000019',
-      status: 'success',
-      type: 'signature',
-      documentHash: '0xC9D1...4E8B'
-    },
-    {
-      txHash: '0yza567...bcd890',
-      blockNumber: 334445,
-      timestamp: new Date(Date.now() - 18000000),
-      from: '0x71C...A92F',
-      to: '0x1234...5678',
-      value: '0',
-      gasUsed: '0.000022',
-      status: 'pending',
-      type: 'contract_interaction'
-    }
-  ];
-
-  get filteredTransactions(): BlockchainTransaction[] {
-    return this.transactions.filter(tx => {
+  // Computed filtered transactions
+  filteredTransactions = computed(() => {
+    return this.transactions().filter(tx => {
       const matchesSearch = !this.searchQuery ||
-        tx.txHash.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+        tx.tx_hash.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
         tx.from.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-        (tx.documentHash && tx.documentHash.toLowerCase().includes(this.searchQuery.toLowerCase()));
+        (tx.document_hash && tx.document_hash.toLowerCase().includes(this.searchQuery.toLowerCase()));
 
-      const matchesType = !this.typeFilter || tx.type === this.typeFilter;
+      const matchesType = !this.typeFilter || tx.tx_type === this.typeFilter;
 
       return matchesSearch && matchesType;
     });
-  }
+  });
 
   ngOnInit(): void {
-    // In real app, fetch blockchain data from backend/Web3
+    this.loadData();
+  }
+
+  private loadData(): void {
+    this.loading.set(true);
+    this.error.set(null);
+
+    // Load stats and transactions in parallel
+    this.loadStats();
+    this.loadTransactions();
+  }
+
+  private loadStats(): void {
+    this.apiService.getBlockchainStats().subscribe({
+      next: (stats) => {
+        this.stats.set(stats);
+        this.loading.set(false);
+      },
+      error: (err: Error) => {
+        console.error('Failed to load blockchain stats:', err);
+        this.error.set('Failed to load blockchain stats');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  private loadTransactions(): void {
+    this.apiService.getTransactions({ limit: 50, offset: 0 }).subscribe({
+      next: (response: TransactionsResponse) => {
+        this.transactions.set(response.transactions);
+      },
+      error: (err: Error) => {
+        console.error('Failed to load transactions:', err);
+        this.error.set('Failed to load transactions');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  formatAddress(address: string): string {
+    if (!address) return '';
+    return `${address.slice(0, 10)}...${address.slice(-8)}`;
+  }
+
+  retry(): void {
+    this.loadData();
   }
 }

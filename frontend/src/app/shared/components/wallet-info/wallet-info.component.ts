@@ -22,7 +22,7 @@ import { WalletState } from '../../../core/models/wallet.model';
         </div>
         <div class="info-row">
           <span class="label">Balance:</span>
-          <span class="value">{{ balance }} MATIC</span>
+          <span class="value">{{ balance }} POL</span>
         </div>
       </div>
     </div>
